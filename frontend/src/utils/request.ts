@@ -1,5 +1,36 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import type { ApiResponse } from '@/types'
+import { ElMessage } from 'element-plus'
+
+// 用于防止重复弹出401提示
+let isUnauthorizedHandling = false
+
+// 清除认证信息并跳转到登录页
+const handleUnauthorized = (message?: string) => {
+  if (isUnauthorizedHandling) {
+    return
+  }
+  isUnauthorizedHandling = true
+
+  // 清除所有本地存储的认证信息
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+  localStorage.removeItem('accountUser')
+  
+  // 显示提示信息
+  ElMessage.warning(message || '登录已过期，请重新登录')
+  
+  // 延迟跳转，让用户看到提示信息
+  setTimeout(() => {
+    // 跳转到登录页，并保存当前路径用于登录后跳转回来
+    const currentPath = window.location.pathname + window.location.search
+    // 如果当前不在登录页，则跳转
+    if (!window.location.pathname.includes('/login')) {
+      window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
+    }
+    isUnauthorizedHandling = false
+  }, 500)
+}
 
 // Create axios instance
 const request: AxiosInstance = axios.create({
@@ -42,10 +73,9 @@ request.interceptors.response.use(
       
       // Handle specific error codes
       if (res.code === 401) {
-        // Unauthorized - clear token and redirect to login
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
+        // Unauthorized - handle logout and redirect
+        handleUnauthorized(res.message)
+        return Promise.reject(new Error(res.message || '未授权'))
       }
       
       return Promise.reject(new Error(res.message || 'Error'))
@@ -67,9 +97,8 @@ request.interceptors.response.use(
           console.error('Bad request:', errorMessage)
           break
         case 401:
-          localStorage.removeItem('token')
-          localStorage.removeItem('user')
-          window.location.href = '/login'
+          // Unauthorized - handle logout and redirect
+          handleUnauthorized(errorMessage)
           break
         case 403:
           console.error('Access denied:', errorMessage)

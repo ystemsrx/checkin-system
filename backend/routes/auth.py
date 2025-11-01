@@ -2,7 +2,12 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from models import db, User, Credential
 import requests
-from utils.auth_helper import parse_user_id
+from utils.auth_helper import (
+    parse_user_id, 
+    parse_password_version, 
+    verify_user_status, 
+    verify_password_version
+)
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -20,8 +25,11 @@ def get_organizers():
             'msg': '无权限：仅管理员可以访问'
         }), 403
     
-    # 查询所有组织者
-    organizers = User.query.filter_by(role='organizer').order_by(User.created_at.desc()).all()
+    # 查询所有未删除的组织者
+    organizers = User.query.filter_by(
+        role='organizer',
+        is_deleted=False
+    ).order_by(User.created_at.desc()).all()
     
     return jsonify({
         'success': True,
@@ -75,8 +83,14 @@ def create_organizer():
             'msg': '账号已存在'
         }), 400
     
-    # 检查账号是否已存在于User表（组织者账号）
-    if User.query.filter_by(username=account_id).first():
+    # 检查账号是否已存在于User表（组织者账号），只检查未删除的用户
+    existing_organizer = User.query.filter_by(
+        username=account_id, 
+        role='organizer',
+        is_deleted=False
+    ).first()
+    
+    if existing_organizer:
         return jsonify({
             'success': False,
             'code': 400,
@@ -88,7 +102,10 @@ def create_organizer():
         username=account_id,
         email=f'{account_id}@organizer.local',
         role='organizer',
-        name=name if name else account_id  # Use provided name or fallback to username
+        name=name if name else account_id,  # Use provided name or fallback to username
+        is_active=True,
+        is_deleted=False,
+        password_version=1
     )
     user.set_password(password)
     
@@ -105,6 +122,163 @@ def create_organizer():
             'role': 'organizer'
         }
     }), 201
+
+
+@auth_bp.route('/admin/toggle-organizer-status', methods=['POST'])
+def toggle_organizer_status():
+    """管理员停用/启用组织者"""
+    data = request.get_json()
+    
+    # 验证管理员身份
+    admin_account = data.get('adminAccount')
+    admin_password = data.get('adminPassword')
+    
+    if admin_account != 'admin' or admin_password != 'admin123':
+        return jsonify({
+            'success': False,
+            'code': 403,
+            'msg': '无权限：仅管理员可以操作'
+        }), 403
+    
+    # 验证必填字段
+    organizer_id = data.get('organizerId')
+    if not organizer_id:
+        return jsonify({
+            'success': False,
+            'code': 400,
+            'msg': '组织者ID不能为空'
+        }), 400
+    
+    # 查找组织者
+    organizer = User.query.filter_by(id=organizer_id, role='organizer', is_deleted=False).first()
+    if not organizer:
+        return jsonify({
+            'success': False,
+            'code': 404,
+            'msg': '组织者不存在'
+        }), 404
+    
+    # 切换状态
+    organizer.is_active = not organizer.is_active
+    
+    # 如果停用，增加密码版本号，使现有token失效
+    if not organizer.is_active:
+        organizer.password_version += 1
+    
+    db.session.commit()
+    
+    status_text = '启用' if organizer.is_active else '停用'
+    return jsonify({
+        'success': True,
+        'code': 200,
+        'message': f'组织者已{status_text}',
+        'data': organizer.to_dict()
+    })
+
+
+@auth_bp.route('/admin/change-organizer-password', methods=['POST'])
+def change_organizer_password():
+    """管理员修改组织者密码"""
+    data = request.get_json()
+    
+    # 验证管理员身份
+    admin_account = data.get('adminAccount')
+    admin_password = data.get('adminPassword')
+    
+    if admin_account != 'admin' or admin_password != 'admin123':
+        return jsonify({
+            'success': False,
+            'code': 403,
+            'msg': '无权限：仅管理员可以操作'
+        }), 403
+    
+    # 验证必填字段
+    organizer_id = data.get('organizerId')
+    new_password = data.get('newPassword')
+    
+    if not organizer_id or not new_password:
+        return jsonify({
+            'success': False,
+            'code': 400,
+            'msg': '组织者ID和新密码不能为空'
+        }), 400
+    
+    if len(new_password) < 6:
+        return jsonify({
+            'success': False,
+            'code': 400,
+            'msg': '密码长度不能少于6个字符'
+        }), 400
+    
+    # 查找组织者
+    organizer = User.query.filter_by(id=organizer_id, role='organizer', is_deleted=False).first()
+    if not organizer:
+        return jsonify({
+            'success': False,
+            'code': 404,
+            'msg': '组织者不存在'
+        }), 404
+    
+    # 修改密码并增加版本号，使现有token失效
+    organizer.set_password(new_password)
+    organizer.password_version += 1
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'code': 200,
+        'message': '密码修改成功',
+        'data': organizer.to_dict()
+    })
+
+
+@auth_bp.route('/admin/delete-organizer', methods=['POST'])
+def delete_organizer():
+    """管理员删除组织者（软删除）"""
+    data = request.get_json()
+    
+    # 验证管理员身份
+    admin_account = data.get('adminAccount')
+    admin_password = data.get('adminPassword')
+    
+    if admin_account != 'admin' or admin_password != 'admin123':
+        return jsonify({
+            'success': False,
+            'code': 403,
+            'msg': '无权限：仅管理员可以操作'
+        }), 403
+    
+    # 验证必填字段
+    organizer_id = data.get('organizerId')
+    if not organizer_id:
+        return jsonify({
+            'success': False,
+            'code': 400,
+            'msg': '组织者ID不能为空'
+        }), 400
+    
+    # 查找组织者
+    organizer = User.query.filter_by(id=organizer_id, role='organizer', is_deleted=False).first()
+    if not organizer:
+        return jsonify({
+            'success': False,
+            'code': 404,
+            'msg': '组织者不存在'
+        }), 404
+    
+    # 软删除：标记为已删除，停用账号，增加密码版本号
+    organizer.is_deleted = True
+    organizer.is_active = False
+    organizer.password_version += 1
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'code': 200,
+        'message': '组织者已删除'
+    })
 
 
 @auth_bp.route('/login', methods=['POST'])
@@ -145,10 +319,19 @@ def login():
             }), 401
     
     # 检查是否为组织者（User表）
-    organizer = User.query.filter_by(username=account_id, role='organizer').first()
+    organizer = User.query.filter_by(username=account_id, role='organizer', is_deleted=False).first()
     if organizer and organizer.check_password(password):
-        # 生成JWT token
-        access_token = create_access_token(identity=str(organizer.id))
+        # 检查账号状态
+        if not organizer.is_active:
+            return jsonify({
+                'success': False,
+                'code': 401,
+                'msg': '账号已被停用，请联系管理员'
+            }), 401
+        
+        # 生成JWT token，包含密码版本
+        identity = f"{organizer.id}_v{organizer.password_version}"
+        access_token = create_access_token(identity=identity)
         return jsonify({
             'success': True,
             'code': 200,
@@ -182,8 +365,9 @@ def login():
             db.session.add(student)
             db.session.commit()
         
-        # 为学生生成token (使用User ID)
-        access_token = create_access_token(identity=str(student.id))
+        # 为学生生成token (使用User ID，包含密码版本)
+        identity = f"{student.id}_v{student.password_version}"
+        access_token = create_access_token(identity=identity)
         return jsonify({
             'success': True,
             'code': 200,
@@ -243,8 +427,9 @@ def login():
                 db.session.add(student)
                 db.session.commit()
             
-            # 为学生生成token (使用User ID)
-            access_token = create_access_token(identity=str(student.id))
+            # 为学生生成token (使用User ID，包含密码版本)
+            identity = f"{student.id}_v{student.password_version}"
+            access_token = create_access_token(identity=identity)
             
             return jsonify({
                 'success': True,
@@ -285,11 +470,37 @@ def login():
 @jwt_required()
 def get_current_user():
     """获取当前用户信息"""
-    user_id = parse_user_id(get_jwt_identity())
+    identity = get_jwt_identity()
+    
+    # 管理员直接返回
+    if identity and identity.startswith('admin_'):
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': {
+                'id': 0,
+                'username': 'admin',
+                'role': 'admin',
+                'name': '管理员'
+            }
+        })
+    
+    user_id = parse_user_id(identity)
+    token_version = parse_password_version(identity)
+    
     user = User.query.get(user_id)
     
-    if not user:
-        return jsonify({'code': 404, 'message': '用户不存在'}), 404
+    # 验证用户状态
+    is_valid, error_response_tuple = verify_user_status(user)
+    if not is_valid:
+        return error_response_tuple
+    
+    # 验证密码版本
+    if not verify_password_version(user, token_version):
+        return jsonify({
+            'code': 401,
+            'message': '登录凭证已过期，请重新登录'
+        }), 401
     
     return jsonify({
         'code': 200,

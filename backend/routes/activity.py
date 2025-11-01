@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Activity, User, Registration
 from datetime import datetime
 import json
-from utils.auth_helper import parse_user_id
+from utils.auth_helper import parse_user_id, require_active_user
 
 activity_bp = Blueprint('activity', __name__)
 
@@ -64,6 +64,7 @@ def get_activity(activity_id):
 
 @activity_bp.route('', methods=['POST'])
 @jwt_required()
+@require_active_user
 def create_activity():
     """创建活动（仅组织者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -118,6 +119,7 @@ def create_activity():
 
 @activity_bp.route('/<int:activity_id>', methods=['PUT'])
 @jwt_required()
+@require_active_user
 def update_activity(activity_id):
     """更新活动信息（仅创建者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -183,6 +185,7 @@ def update_activity(activity_id):
 
 @activity_bp.route('/<int:activity_id>', methods=['DELETE'])
 @jwt_required()
+@require_active_user
 def delete_activity(activity_id):
     """删除活动（仅创建者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -215,6 +218,7 @@ def delete_activity(activity_id):
 
 @activity_bp.route('/my', methods=['GET'])
 @jwt_required()
+@require_active_user
 def get_my_activities():
     """获取我创建的活动（组织者）"""
     user_id = parse_user_id(get_jwt_identity())

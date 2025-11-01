@@ -8,12 +8,15 @@ class User(db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    username = db.Column(db.String(80), nullable=False)  # 移除unique约束，因为可能有同名的已删除用户
+    email = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # 'student' or 'organizer'
     name = db.Column(db.String(100))  # Display name for organizers
     avatar = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True, nullable=False)  # 是否启用
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)  # 是否已删除（软删除）
+    password_version = db.Column(db.Integer, default=1, nullable=False)  # 密码版本，用于使旧token失效
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # 关系
@@ -35,6 +38,8 @@ class User(db.Model):
             'role': self.role,
             'name': self.name,
             'avatar': self.avatar,
+            'isActive': self.is_active,
+            'isDeleted': self.is_deleted,
             'createdAt': self.created_at.isoformat() + 'Z' if self.created_at else None
         }
 

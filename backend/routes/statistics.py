@@ -6,12 +6,13 @@ from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from io import BytesIO
-from utils.auth_helper import parse_user_id
+from utils.auth_helper import parse_user_id, require_active_user
 
 statistics_bp = Blueprint('statistics', __name__)
 
 @statistics_bp.route('/activity/<int:activity_id>', methods=['GET'])
 @jwt_required()
+@require_active_user
 def get_activity_statistics(activity_id):
     """获取活动统计（组织者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -65,6 +66,7 @@ def get_activity_statistics(activity_id):
 
 @statistics_bp.route('/organizer', methods=['GET'])
 @jwt_required()
+@require_active_user
 def get_organizer_statistics():
     """获取组织者总体统计"""
     user_id = parse_user_id(get_jwt_identity())
@@ -115,6 +117,7 @@ def get_organizer_statistics():
 
 @statistics_bp.route('/export/<int:activity_id>', methods=['GET'])
 @jwt_required()
+@require_active_user
 def export_statistics(activity_id):
     """导出统计数据为Excel（组织者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -267,6 +270,7 @@ def export_statistics(activity_id):
 
 @statistics_bp.route('/trend', methods=['GET'])
 @jwt_required()
+@require_active_user
 def get_registration_trend():
     """获取报名趋势"""
     user_id = parse_user_id(get_jwt_identity())
