@@ -229,9 +229,8 @@ const handleCloseSuccess = () => {
 }
 
 const formatTime = (time: string) => {
-  // 添加 'Z' 表示 UTC 时间，dayjs 会自动转换为本地时间
-  const timeStr = time.endsWith('Z') ? time : time + 'Z'
-  return dayjs(timeStr).format('YYYY-MM-DD HH:mm:ss')
+  // 后端返回的UTC时间字符串已经带'Z'后缀，浏览器会自动转换为本地时间
+  return dayjs(time).format('YYYY-MM-DD HH:mm:ss')
 }
 
 const loadMyActivities = async () => {

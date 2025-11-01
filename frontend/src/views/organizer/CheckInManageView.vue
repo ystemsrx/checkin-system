@@ -372,16 +372,14 @@ const handleAutoRefreshChange = (value: boolean) => {
 
 const isExpired = computed(() => {
   if (!checkInCode.value) return false
-  // 添加 'Z' 表示 UTC 时间
-  const expiresAt = checkInCode.value.expiresAt.endsWith('Z') ? checkInCode.value.expiresAt : checkInCode.value.expiresAt + 'Z'
-  return new Date(expiresAt) < new Date()
+  // 后端返回的UTC时间字符串已经带'Z'后缀
+  return new Date(checkInCode.value.expiresAt) < new Date()
 })
 
 const timeLeft = computed(() => {
   if (!checkInCode.value) return '00:00'
-  // 添加 'Z' 表示 UTC 时间
-  const expiresAt = checkInCode.value.expiresAt.endsWith('Z') ? checkInCode.value.expiresAt : checkInCode.value.expiresAt + 'Z'
-  const expires = new Date(expiresAt).getTime()
+  // 后端返回的UTC时间字符串已经带'Z'后缀
+  const expires = new Date(checkInCode.value.expiresAt).getTime()
   const diff = expires - currentTime.value
   if (diff <= 0) return '00:00'
   
@@ -392,11 +390,9 @@ const timeLeft = computed(() => {
 
 const timePercentage = computed(() => {
   if (!checkInCode.value) return 0
-  // 添加 'Z' 表示 UTC 时间
-  const createdAt = checkInCode.value.createdAt.endsWith('Z') ? checkInCode.value.createdAt : checkInCode.value.createdAt + 'Z'
-  const expiresAt = checkInCode.value.expiresAt.endsWith('Z') ? checkInCode.value.expiresAt : checkInCode.value.expiresAt + 'Z'
-  const created = new Date(createdAt).getTime()
-  const expires = new Date(expiresAt).getTime()
+  // 后端返回的UTC时间字符串已经带'Z'后缀
+  const created = new Date(checkInCode.value.createdAt).getTime()
+  const expires = new Date(checkInCode.value.expiresAt).getTime()
   const total = expires - created
   const remaining = expires - currentTime.value
   return Math.max(0, Math.min(100, (remaining / total) * 100))
@@ -410,9 +406,8 @@ const progressColor = computed(() => {
 })
 
 const formatTime = (time: string) => {
-  // 添加 'Z' 表示 UTC 时间，dayjs 会自动转换为本地时间
-  const timeStr = time.endsWith('Z') ? time : time + 'Z'
-  return dayjs(timeStr).format('YYYY-MM-DD HH:mm:ss')
+  // 后端返回的UTC时间字符串已经带'Z'后缀，浏览器会自动转换为本地时间
+  return dayjs(time).format('YYYY-MM-DD HH:mm:ss')
 }
 
 const getStatusType = (status: string) => {

@@ -146,7 +146,7 @@ def generate_qrcode(activity_id):
     # 生成二维码数据
     qr_data = json.dumps({
         'activityId': activity_id,
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.utcnow().isoformat() + 'Z'
     })
     
     return jsonify({
@@ -284,7 +284,7 @@ def get_my_recent_checkins():
             'activityTitle': activity.title if activity else '未知活动',
             'userId': checkin.user_id,
             'method': checkin.method,
-            'checkedInAt': checkin.checked_in_at.isoformat()
+            'checkedInAt': checkin.checked_in_at.isoformat() + 'Z'
         }
         result.append(checkin_data)
     

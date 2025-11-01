@@ -224,9 +224,8 @@ const getStatusLabel = (status: string) => {
 }
 
 const formatTime = (time: string) => {
-  // 后端返回的是UTC时间字符串，需要转换为本地时间显示
-  const timeStr = time.endsWith('Z') || time.includes('+') ? time : time + 'Z'
-  return dayjs(timeStr).format('YYYY-MM-DD HH:mm')
+  // 后端返回的UTC时间字符串已经带'Z'后缀，浏览器会自动转换为本地时间
+  return dayjs(time).format('YYYY-MM-DD HH:mm')
 }
 </script>
 

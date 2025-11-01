@@ -1,12 +1,15 @@
 <template>
-  <div class="manage-organizers">
-    <div class="header">
-      <h1>组织者管理</h1>
-      <el-button type="primary" @click="showCreateDialog = true">
-        <el-icon><Plus /></el-icon>
-        添加组织者
-      </el-button>
-    </div>
+  <div class="manage-organizers-page">
+    <app-header />
+    
+    <div class="manage-organizers">
+      <div class="header">
+        <h1>组织者管理</h1>
+        <el-button type="primary" @click="showCreateDialog = true">
+          <el-icon><Plus /></el-icon>
+          添加组织者
+        </el-button>
+      </div>
 
     <!-- Create Organizer Dialog -->
     <el-dialog
@@ -62,20 +65,48 @@
     >
       在此页面可以创建组织者账号。组织者可以创建和管理活动。
     </el-alert>
+
+    <!-- Organizers List -->
+    <el-card shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span>组织者列表</span>
+        </div>
+      </template>
+      
+      <el-table
+        :data="organizers"
+        v-loading="loadingList"
+        style="width: 100%"
+      >
+        <el-table-column prop="username" label="账号" width="180" />
+        <el-table-column prop="name" label="姓名" width="180" />
+        <el-table-column prop="email" label="邮箱" />
+        <el-table-column prop="createdAt" label="创建时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.createdAt) }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import request from '@/utils/request'
+import AppHeader from '@/components/layout/AppHeader.vue'
 
 const authStore = useAuthStore()
 const showCreateDialog = ref(false)
 const loading = ref(false)
+const loadingList = ref(false)
 const formRef = ref<FormInstance>()
+const organizers = ref<any[]>([])
 
 const form = reactive({
   account: '',
@@ -100,6 +131,34 @@ const resetForm = () => {
   formRef.value?.clearValidate()
 }
 
+const fetchOrganizers = async () => {
+  loadingList.value = true
+  try {
+    const response = await request.get('/auth/admin/organizers', {
+      params: {
+        adminAccount: authStore.accountUser?.accountId,
+        adminPassword: 'admin123'
+      }
+    })
+
+    if (response.data.success) {
+      organizers.value = response.data.data
+    } else {
+      ElMessage.error(response.data.msg || '获取组织者列表失败')
+    }
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.msg || error.message || '获取组织者列表失败'
+    ElMessage.error(errorMsg)
+  } finally {
+    loadingList.value = false
+  }
+}
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  return date.toLocaleString('zh-CN')
+}
+
 const handleCreate = async () => {
   if (!formRef.value) return
 
@@ -119,6 +178,8 @@ const handleCreate = async () => {
           ElMessage.success('组织者创建成功')
           showCreateDialog.value = false
           resetForm()
+          // 刷新列表
+          fetchOrganizers()
         } else {
           ElMessage.error(response.data.msg || '创建失败')
         }
@@ -131,9 +192,18 @@ const handleCreate = async () => {
     }
   })
 }
+
+onMounted(() => {
+  fetchOrganizers()
+})
 </script>
 
 <style scoped>
+.manage-organizers-page {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
 .manage-organizers {
   max-width: 1200px;
   margin: 0 auto;
@@ -152,5 +222,12 @@ const handleCreate = async () => {
   font-weight: 600;
   color: #303133;
   margin: 0;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
 }
 </style>

@@ -6,6 +6,31 @@ from utils.auth_helper import parse_user_id
 
 auth_bp = Blueprint('auth', __name__)
 
+@auth_bp.route('/admin/organizers', methods=['GET'])
+def get_organizers():
+    """管理员获取组织者列表"""
+    # 验证管理员身份
+    admin_account = request.args.get('adminAccount')
+    admin_password = request.args.get('adminPassword')
+    
+    if admin_account != 'admin' or admin_password != 'admin123':
+        return jsonify({
+            'success': False,
+            'code': 403,
+            'msg': '无权限：仅管理员可以访问'
+        }), 403
+    
+    # 查询所有组织者
+    organizers = User.query.filter_by(role='organizer').order_by(User.created_at.desc()).all()
+    
+    return jsonify({
+        'success': True,
+        'code': 200,
+        'message': '获取成功',
+        'data': [organizer.to_dict() for organizer in organizers]
+    })
+
+
 @auth_bp.route('/admin/create-organizer', methods=['POST'])
 def create_organizer():
     """管理员创建组织者账号"""
@@ -170,7 +195,7 @@ def login():
                 'bio': '',
                 'role': 'student',
                 'token': access_token,
-                'firstLoginTime': credential.created_at.isoformat()
+                'firstLoginTime': credential.created_at.isoformat() + 'Z'
             }
         })
     
@@ -232,7 +257,7 @@ def login():
                     'bio': user_data.get('bio', ''),
                     'role': 'student',
                     'token': access_token,
-                    'firstLoginTime': credential.created_at.isoformat()
+                    'firstLoginTime': credential.created_at.isoformat() + 'Z'
                 }
             })
         else:

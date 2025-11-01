@@ -91,8 +91,8 @@ const toggleMinimize = () => {
 }
 
 const formatTime = (time: string) => {
-  const timeStr = time.endsWith('Z') || time.includes('+') ? time : time + 'Z'
-  return dayjs(timeStr).format('HH:mm:ss')
+  // 后端返回的UTC时间字符串已经带'Z'后缀，浏览器会自动转换为本地时间
+  return dayjs(time).format('HH:mm:ss')
 }
 
 const remainingTime = computed(() => {
@@ -100,12 +100,8 @@ const remainingTime = computed(() => {
   
   // 使用响应式的currentTime以触发更新
   const now = new Date(currentTime.value)
-  // 正确解析UTC时间
-  const expiresStr = checkinStore.activeCheckInCode.expiresAt
-  const expiresTime = expiresStr.endsWith('Z') || expiresStr.includes('+') 
-    ? expiresStr 
-    : expiresStr + 'Z'
-  const expires = new Date(expiresTime)
+  // 后端返回的UTC时间字符串已经带'Z'后缀
+  const expires = new Date(checkinStore.activeCheckInCode.expiresAt)
   const diff = expires.getTime() - now.getTime()
   
   if (diff <= 0) return '已过期'
@@ -120,18 +116,9 @@ const countdownPercentage = computed(() => {
   
   // 使用响应式的currentTime以触发更新
   const now = new Date(currentTime.value)
-  // 正确解析UTC时间
-  const startedStr = checkinStore.activeCheckInCode.startedAt
-  const startedTime = startedStr.endsWith('Z') || startedStr.includes('+') 
-    ? startedStr 
-    : startedStr + 'Z'
-  const started = new Date(startedTime)
-  
-  const expiresStr = checkinStore.activeCheckInCode.expiresAt
-  const expiresTime = expiresStr.endsWith('Z') || expiresStr.includes('+') 
-    ? expiresStr 
-    : expiresStr + 'Z'
-  const expires = new Date(expiresTime)
+  // 后端返回的UTC时间字符串已经带'Z'后缀
+  const started = new Date(checkinStore.activeCheckInCode.startedAt)
+  const expires = new Date(checkinStore.activeCheckInCode.expiresAt)
   
   const total = expires.getTime() - started.getTime()
   const elapsed = now.getTime() - started.getTime()
