@@ -12,14 +12,26 @@
         :ellipsis="false"
         class="header-menu"
       >
-        <el-menu-item
-          v-if="authStore.isAdmin"
-          index="/admin/manage-organizers"
-          @click="router.push('/admin/manage-organizers')"
-        >
-          <el-icon><Setting /></el-icon>
-          <span>管理</span>
-        </el-menu-item>
+        <el-sub-menu v-if="authStore.isAdmin" index="/admin">
+          <template #title>
+            <el-icon><Setting /></el-icon>
+            <span>管理</span>
+          </template>
+          <el-menu-item
+            index="/admin/manage-organizers"
+            @click="router.push('/admin/manage-organizers')"
+          >
+            <el-icon><User /></el-icon>
+            <span>组织者管理</span>
+          </el-menu-item>
+          <el-menu-item
+            index="/admin/manage-activities"
+            @click="router.push('/admin/manage-activities')"
+          >
+            <el-icon><Management /></el-icon>
+            <span>活动管理</span>
+          </el-menu-item>
+        </el-sub-menu>
 
         <el-menu-item index="/activities" @click="router.push('/activities')">
           <el-icon><List /></el-icon>

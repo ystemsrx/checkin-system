@@ -35,5 +35,17 @@ export const activityApi = {
   // Get activity categories
   getCategories() {
     return request.get<ApiResponse<string[]>>('/activities/categories')
+  },
+
+  // Admin: Delete activity (except ongoing)
+  adminDeleteActivity(id: number) {
+    return request.delete<ApiResponse>(`/activities/admin/${id}`)
+  },
+
+  // Admin: Export activity list
+  adminExportActivities() {
+    return request.get('/activities/admin/export', {
+      responseType: 'blob'
+    })
   }
 }

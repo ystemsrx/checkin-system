@@ -260,3 +260,107 @@ def get_categories():
         'message': '获取成功',
         'data': categories
     })
+
+
+@activity_bp.route('/admin/<int:activity_id>', methods=['DELETE'])
+@jwt_required()
+def admin_delete_activity(activity_id):
+    """管理员删除活动（除了进行中的活动）"""
+    identity = get_jwt_identity()
+    
+    # 验证是否为管理员
+    if not identity or not identity.startswith('admin_'):
+        return jsonify({'code': 403, 'message': '权限不足，仅管理员可访问'}), 403
+    
+    activity = Activity.query.get(activity_id)
+    
+    if not activity:
+        return jsonify({'code': 404, 'message': '活动不存在'}), 404
+    
+    # 检查活动状态，进行中的活动不能删除
+    now = datetime.utcnow()
+    if now >= activity.start_time and now <= activity.end_time:
+        return jsonify({'code': 400, 'message': '进行中的活动不能删除'}), 400
+    
+    db.session.delete(activity)
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'message': '删除成功'
+    })
+
+
+@activity_bp.route('/admin/export', methods=['GET'])
+@jwt_required()
+def admin_export_activities():
+    """管理员导出活动列表"""
+    from flask import make_response
+    import csv
+    from io import StringIO
+    
+    identity = get_jwt_identity()
+    
+    # 验证是否为管理员
+    if not identity or not identity.startswith('admin_'):
+        return jsonify({'code': 403, 'message': '权限不足，仅管理员可访问'}), 403
+    
+    # 获取所有活动
+    activities = Activity.query.order_by(Activity.created_at.desc()).all()
+    
+    # 创建CSV
+    si = StringIO()
+    writer = csv.writer(si)
+    
+    # 写入表头
+    writer.writerow([
+        'ID', '活动标题', '分类', '状态', '组织者', '开始时间', '结束时间', 
+        '地点', '最大人数', '当前人数', '报名截止时间', '创建时间'
+    ])
+    
+    # 写入数据
+    for activity in activities:
+        # 计算实际状态
+        now = datetime.utcnow()
+        if activity.status == 'cancelled':
+            actual_status = '已取消'
+        elif now < activity.start_time:
+            actual_status = '未开始'
+        elif now >= activity.start_time and now <= activity.end_time:
+            actual_status = '进行中'
+        else:
+            actual_status = '已结束'
+        
+        # 分类映射
+        category_map = {
+            'academic': '学术',
+            'cultural': '文化',
+            'sports': '体育',
+            'volunteer': '志愿',
+            'other': '其他'
+        }
+        
+        writer.writerow([
+            activity.id,
+            activity.title,
+            category_map.get(activity.category, activity.category),
+            actual_status,
+            activity.organizer.username,
+            activity.start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            activity.end_time.strftime('%Y-%m-%d %H:%M:%S'),
+            activity.location,
+            activity.max_participants,
+            activity.current_participants,
+            activity.registration_deadline.strftime('%Y-%m-%d %H:%M:%S'),
+            activity.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        ])
+    
+    # 创建响应
+    output = si.getvalue()
+    si.close()
+    
+    response = make_response(output)
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8-sig'
+    response.headers['Content-Disposition'] = f'attachment; filename=activities_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    
+    return response
