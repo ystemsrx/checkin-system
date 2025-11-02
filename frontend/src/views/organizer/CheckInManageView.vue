@@ -182,7 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { activityApi } from '@/api/activity'
 import { checkinApi } from '@/api/checkin'
@@ -221,6 +221,17 @@ const stats = reactive({
 let refreshTimer: number | null = null
 let countdownTimer: number | null = null
 const currentTime = ref(Date.now())
+
+// 监听 store 中的 activeCheckInCode 变化，同步到本地
+watch(
+  () => checkinStore.activeCheckInCode,
+  (newCode) => {
+    // 如果 store 中的签到码被清除，并且是当前活动的签到码，则清除本地显示
+    if (!newCode || newCode.activityId !== activityId) {
+      checkInCode.value = null
+    }
+  }
+)
 
 onMounted(async () => {
   await loadActivity()
