@@ -12,6 +12,15 @@
         :ellipsis="false"
         class="header-menu"
       >
+        <el-menu-item
+          v-if="authStore.isAdmin"
+          index="/admin/manage-organizers"
+          @click="router.push('/admin/manage-organizers')"
+        >
+          <el-icon><Setting /></el-icon>
+          <span>管理</span>
+        </el-menu-item>
+
         <el-menu-item index="/activities" @click="router.push('/activities')">
           <el-icon><List /></el-icon>
           <span>活动列表</span>

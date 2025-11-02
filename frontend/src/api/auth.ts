@@ -35,5 +35,12 @@ export const authApi = {
   // Admin: Create organizer
   createOrganizer(data: { adminAccount: string; adminPassword: string; account: string; password: string; name?: string }) {
     return request.post<ApiResponse>('/auth/admin/create-organizer', data)
+  },
+
+  // Admin: Get organizers list
+  getOrganizers(adminAccount: string, adminPassword: string) {
+    return request.get<ApiResponse>('/auth/admin/organizers', {
+      params: { adminAccount, adminPassword }
+    })
   }
 }

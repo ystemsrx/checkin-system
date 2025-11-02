@@ -8,12 +8,15 @@ class User(db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    username = db.Column(db.String(80), nullable=False)  # 移除unique约束，因为可能有同名的已删除用户
+    email = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # 'student' or 'organizer'
     name = db.Column(db.String(100))  # Display name for organizers
     avatar = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True, nullable=False)  # 是否启用
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)  # 是否已删除（软删除）
+    password_version = db.Column(db.Integer, default=1, nullable=False)  # 密码版本，用于使旧token失效
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # 关系
@@ -35,7 +38,9 @@ class User(db.Model):
             'role': self.role,
             'name': self.name,
             'avatar': self.avatar,
-            'createdAt': self.created_at.isoformat()
+            'isActive': self.is_active,
+            'isDeleted': self.is_deleted,
+            'createdAt': self.created_at.isoformat() + 'Z' if self.created_at else None
         }
 
 
@@ -98,18 +103,18 @@ class Activity(db.Model):
             'status': actual_status,  # 使用动态计算的状态
             'organizerId': self.organizer_id,
             'organizerName': self.organizer.username,
-            'startTime': self.start_time.isoformat(),
-            'endTime': self.end_time.isoformat(),
+            'startTime': self.start_time.isoformat() + 'Z',
+            'endTime': self.end_time.isoformat() + 'Z',
             'location': self.location,
             'maxParticipants': self.max_participants,
             'currentParticipants': self.current_participants,
-            'registrationDeadline': self.registration_deadline.isoformat(),
+            'registrationDeadline': self.registration_deadline.isoformat() + 'Z',
             'coverImage': self.cover_image,
             'images': json.loads(self.images) if self.images else [],
             'tags': json.loads(self.tags) if self.tags else [],
             'subItems': sub_items,
-            'createdAt': self.created_at.isoformat(),
-            'updatedAt': self.updated_at.isoformat()
+            'createdAt': self.created_at.isoformat() + 'Z',
+            'updatedAt': self.updated_at.isoformat() + 'Z'
         }
 
 
@@ -149,8 +154,8 @@ class Registration(db.Model):
             'userEmail': user_email,
             'status': self.status,
             'subItem': self.sub_item,
-            'registeredAt': self.registered_at.isoformat(),
-            'checkedInAt': self.checked_in_at.isoformat() if self.checked_in_at else None,
+            'registeredAt': self.registered_at.isoformat() + 'Z',
+            'checkedInAt': self.checked_in_at.isoformat() + 'Z' if self.checked_in_at else None,
             'activity': activity.to_dict() if activity else None
         }
 
@@ -186,7 +191,7 @@ class CheckIn(db.Model):
             'userName': user_name,
             'userEmail': user_email,
             'method': self.method,
-            'checkedInAt': self.checked_in_at.isoformat()
+            'checkedInAt': self.checked_in_at.isoformat() + 'Z'
         }
 
 
@@ -204,8 +209,8 @@ class CheckInCode(db.Model):
             'id': self.id,
             'activityId': self.activity_id,
             'code': self.code,
-            'expiresAt': self.expires_at.isoformat(),
-            'createdAt': self.created_at.isoformat()
+            'expiresAt': self.expires_at.isoformat() + 'Z',
+            'createdAt': self.created_at.isoformat() + 'Z'
         }
 
 
@@ -230,6 +235,6 @@ class Credential(db.Model):
             'id': self.id,
             'accountId': self.account_id,
             'name': self.name,
-            'createdAt': self.created_at.isoformat(),
-            'updatedAt': self.updated_at.isoformat()
+            'createdAt': self.created_at.isoformat() + 'Z',
+            'updatedAt': self.updated_at.isoformat() + 'Z'
         }

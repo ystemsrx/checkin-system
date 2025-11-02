@@ -2,12 +2,13 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Registration, Activity, User
 from datetime import datetime
-from utils.auth_helper import parse_user_id
+from utils.auth_helper import parse_user_id, require_active_user
 
 registration_bp = Blueprint('registration', __name__)
 
 @registration_bp.route('/<int:activity_id>', methods=['POST'])
 @jwt_required()
+@require_active_user
 def register_activity(activity_id):
     """报名活动"""
     user_id = parse_user_id(get_jwt_identity())
@@ -68,6 +69,7 @@ def register_activity(activity_id):
 
 @registration_bp.route('/<int:activity_id>', methods=['DELETE'])
 @jwt_required()
+@require_active_user
 def cancel_registration(activity_id):
     """取消报名"""
     user_id = parse_user_id(get_jwt_identity())
@@ -102,6 +104,7 @@ def cancel_registration(activity_id):
 
 @registration_bp.route('/my', methods=['GET'])
 @jwt_required()
+@require_active_user
 def get_my_registrations():
     """获取我的报名记录"""
     user_id = parse_user_id(get_jwt_identity())
@@ -135,6 +138,7 @@ def get_my_registrations():
 
 @registration_bp.route('/activity/<int:activity_id>', methods=['GET'])
 @jwt_required()
+@require_active_user
 def get_activity_registrations(activity_id):
     """获取活动的报名列表（组织者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -170,6 +174,7 @@ def get_activity_registrations(activity_id):
 
 @registration_bp.route('/status/<int:activity_id>', methods=['GET'])
 @jwt_required()
+@require_active_user
 def check_registration_status(activity_id):
     """检查报名状态"""
     user_id = parse_user_id(get_jwt_identity())

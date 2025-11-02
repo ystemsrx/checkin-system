@@ -5,12 +5,13 @@ from datetime import datetime, timedelta
 import random
 import string
 import json
-from utils.auth_helper import parse_user_id
+from utils.auth_helper import parse_user_id, require_active_user
 
 checkin_bp = Blueprint('checkin', __name__)
 
 @checkin_bp.route('/qrcode', methods=['POST'])
 @jwt_required()
+@require_active_user
 def checkin_with_qrcode():
     """使用二维码签到"""
     user_id = parse_user_id(get_jwt_identity())
@@ -69,6 +70,7 @@ def checkin_with_qrcode():
 
 @checkin_bp.route('/code', methods=['POST'])
 @jwt_required()
+@require_active_user
 def checkin_with_code():
     """使用签到码签到"""
     user_id = parse_user_id(get_jwt_identity())
@@ -132,6 +134,7 @@ def checkin_with_code():
 
 @checkin_bp.route('/generate-qr/<int:activity_id>', methods=['POST'])
 @jwt_required()
+@require_active_user
 def generate_qrcode(activity_id):
     """生成签到二维码（组织者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -146,7 +149,7 @@ def generate_qrcode(activity_id):
     # 生成二维码数据
     qr_data = json.dumps({
         'activityId': activity_id,
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.utcnow().isoformat() + 'Z'
     })
     
     return jsonify({
@@ -160,6 +163,7 @@ def generate_qrcode(activity_id):
 
 @checkin_bp.route('/generate-code/<int:activity_id>', methods=['POST'])
 @jwt_required()
+@require_active_user
 def generate_code(activity_id):
     """生成签到码（组织者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -204,6 +208,7 @@ def generate_code(activity_id):
 
 @checkin_bp.route('/activity/<int:activity_id>', methods=['GET'])
 @jwt_required()
+@require_active_user
 def get_activity_checkins(activity_id):
     """获取活动签到列表（组织者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -228,6 +233,7 @@ def get_activity_checkins(activity_id):
 
 @checkin_bp.route('/stats/<int:activity_id>', methods=['GET'])
 @jwt_required()
+@require_active_user
 def get_checkin_stats(activity_id):
     """获取签到统计（组组者）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -261,6 +267,7 @@ def get_checkin_stats(activity_id):
 
 @checkin_bp.route('/my-recent', methods=['GET'])
 @jwt_required()
+@require_active_user
 def get_my_recent_checkins():
     """获取我的最近签到记录（学生）"""
     user_id = parse_user_id(get_jwt_identity())
@@ -284,7 +291,7 @@ def get_my_recent_checkins():
             'activityTitle': activity.title if activity else '未知活动',
             'userId': checkin.user_id,
             'method': checkin.method,
-            'checkedInAt': checkin.checked_in_at.isoformat()
+            'checkedInAt': checkin.checked_in_at.isoformat() + 'Z'
         }
         result.append(checkin_data)
     
@@ -297,6 +304,7 @@ def get_my_recent_checkins():
 
 @checkin_bp.route('/end-checkin/<int:activity_id>', methods=['POST'])
 @jwt_required()
+@require_active_user
 def end_checkin(activity_id):
     """强制结束签到（组织者）"""
     user_id = parse_user_id(get_jwt_identity())
